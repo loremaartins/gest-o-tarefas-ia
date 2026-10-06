@@ -1,1 +1,196 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestão de Tarefas com IA</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <h1>📋 Gestão de Tarefas</h1>
+  <p>Organize suas atividades com assistência de IA</p>
+</header>
+
+<div class="estatisticas">
+  <div class="card concluido">
+    <div class="icone">✅</div>
+    <h3>Concluídas</h3>
+    <div class="valor" id="qtd-concluidas">0</div>
+  </div>
+  <div class="card pendente">
+    <div class="icone">⏳</div>
+    <h3>Pendentes</h3>
+    <div class="valor" id="qtd-pendentes">0</div>
+  </div>
+  <div class="card porcentagem">
+    <div class="icone">📊</div>
+    <h3>Progresso</h3>
+    <div class="valor" id="porcentagem">0%</div>
+  </div>
+</div>
+
+<section>
+  <h2>➕ Nova Tarefa</h2>
+  <input type="text" id="titulo" placeholder="Título da tarefa..." required>
+  <textarea id="descricao" rows="3" placeholder="Descrição..."></textarea>
+  <select id="prioridade">
+    <option value="baixa">Baixa</option>
+    <option value="media" selected>Média</option>
+    <option value="alta">Alta</option>
+  </select>
+  <input type="date" id="data-limite">
+  <button onclick="adicionarTarefa()">Adicionar Tarefa</button>
+</section>
+
+<section>
+  <h2>🔍 Filtrar</h2>
+  <div class="filtros">
+    <button class="filtro-btn ativo" data-filtro="todas">Todas</button>
+    <button class="filtro-btn" data-filtro="pendentes">Pendentes</button>
+    <button class="filtro-btn" data-filtro="concluidas">Concluídas</button>
+  </div>
+</section>
+
+<section>
+  <h2>📝 Minhas Tarefas</h2>
+  <div id="lista-tarefas"></div>
+  <div id="sem-tarefas" class="vazio">Nenhuma tarefa cadastrada ainda ✨</div>
+</section>
+
+<script>
+let tarefas = [];
+let filtroAtual = 'todas';
+
+function gerarId() {
+  return Date.now();
+}
+
+function adicionarTarefa() {
+  const titulo = document.getElementById('titulo').value.trim();
+  const descricao = document.getElementById('descricao').value.trim();
+  const prioridade = document.getElementById('prioridade').value;
+  const dataLimite = document.getElementById('data-limite').value;
+
+  if (!titulo) {
+    alert('Escreva o título da tarefa!');
+    return;
+  }
+
+  const tarefa = {
+    id: gerarId(),
+    titulo,
+    descricao,
+    prioridade,
+    dataLimite,
+    concluida: false,
+    criadaEm: new Date().toLocaleDateString('pt-BR')
+  };
+
+  tarefas.unshift(tarefa);
+  salvarTarefas();
+  renderizarTarefas();
+  
+  document.getElementById('titulo').value = '';
+  document.getElementById('descricao').value = '';
+  document.getElementById('prioridade').value = 'media';
+  document.getElementById('data-limite').value = '';
+}
+
+function alternarConcluida(id) {
+  const tarefa = tarefas.find(t => t.id === id);
+  if (tarefa) {
+    tarefa.concluida = !tarefa.concluida;
+    salvarTarefas();
+    renderizarTarefas();
+  }
+}
+
+function excluirTarefa(id) {
+  if (confirm('Tem certeza que deseja excluir?')) {
+    tarefas = tarefas.filter(t => t.id !== id);
+    salvarTarefas();
+    renderizarTarefas();
+  }
+}
+
+function definirFiltro(filtro) {
+  filtroAtual = filtro;
+  document.querySelectorAll('.filtro-btn').forEach(btn => {
+    btn.classList.remove('ativo');
+    if (btn.dataset.filtro === filtro) btn.classList.add('ativo');
+  });
+  renderizarTarefas();
+}
+
+function renderizarTarefas() {
+  const lista = document.getElementById('lista-tarefas');
+  const semTarefas = document.getElementById('sem-tarefas');
+  
+  lista.innerHTML = '';
+  
+  let filtradas = tarefas;
+  if (filtroAtual === 'pendentes') {
+    filtradas = tarefas.filter(t => !t.concluida);
+  } else if (filtroAtual === 'concluidas') {
+    filtradas = tarefas.filter(t => t.concluida);
+  }
+
+  if (filtradas.length === 0) {
+    semTarefas.style.display = 'block';
+  } else {
+    semTarefas.style.display = 'none';
+    filtradas.forEach(tarefa => {
+      const div = document.createElement('div');
+      div.className = `tarefa prioridade-${tarefa.prioridade} ${tarefa.concluida ? 'concluida' : ''}`;
+      div.innerHTML = `
+        <div class="cabecalho">
+          <h4>${tarefa.titulo}</h4>
+          <span class="data">${tarefa.criadaEm}</span>
+        </div>
+        ${tarefa.descricao ? `<p class="desc">${tarefa.descricao}</p>` : ''}
+        ${tarefa.dataLimite ? `<p class="desc">📅 Até: ${new Date(tarefa.dataLimite).toLocaleDateString('pt-BR')}</p>` : ''}
+        <div class="acoes">
+          <button onclick="alternarConcluida(${tarefa.id})">${tarefa.concluida ? '↩️ Reabrir' : '✅ Concluir'}</button>
+          <button class="btn-excluir" onclick="excluirTarefa(${tarefa.id})">🗑️ Excluir</button>
+        </div>
+      `;
+      lista.appendChild(div);
+    });
+  }
+
+  atualizarEstatisticas();
+}
+
+function atualizarEstatisticas() {
+  const total = tarefas.length;
+  const concluidas = tarefas.filter(t => t.concluida).length;
+  const pendentes = total - concluidas;
+  const porcentagem = total > 0 ? Math.round((concluidas / total) * 100) : 0;
+
+  document.getElementById('qtd-concluidas').textContent = concluidas;
+  document.getElementById('qtd-pendentes').textContent = pendentes;
+  document.getElementById('porcentagem').textContent = porcentagem + '%';
+}
+
+function salvarTarefas() {
+  localStorage.setItem('tarefas', JSON.stringify(tarefas));
+}
+
+function carregarTarefas() {
+  const salvas = localStorage.getItem('tarefas');
+  if (salvas) tarefas = JSON.parse(salvas);
+  renderizarTarefas();
+}
+
+document.querySelectorAll('.filtro-btn').forEach(btn => {
+  btn.addEventListener('click', () => definirFiltro(btn.dataset.filtro));
+});
+
+carregarTarefas();
+</script>
+
+</body>
+</html>
 
